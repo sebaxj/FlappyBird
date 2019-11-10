@@ -21,12 +21,14 @@ long pipe_timer;
 /*          Prototypes         */
 /*******************************/
 void displayJumper(Jumper &jumper);
-void displayPipes(Pipe &pipe1, Pipe &pipe2);
-void updatePipes(long &pipe_timer);
+void displayPipe(Pipe &pipe1);
+void updatePipe(long &pipe_timer);
 void updateKinematics(long &vy_timer, long &grav_timer, Jumper& jumper);
 void updateVelocity(long &grav_timer, Jumper& jumper);
 void updateHeight(long &vy_timer, Jumper& jumper);
 bool playerTapsPlate(int threshold);
+bool collisionDetected();
+void gameOver();
 
 void setup() {
   sensor.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
@@ -47,44 +49,61 @@ void setup() {
 }
 
 void loop() {
-  
   if (playerTapsPlate(700)) {
-    jumper.jump(1/750.0);
+    jumper.jump(1/750.0);     // adds a thrust to the main player
   }
 
   updatePipes(pipe_timer);
 
   updateKinematics(vy_timer, grav_timer, jumper);
   displayJumper(jumper);
-  //displayPipes(pipe1, pipe2);
+  displayPipe(pipe1);
+  displayPipe(pipe2);
+
+  if (collisionDetected()) {
+    gameOver();
+  }
 }
 
+/* After a time interval specified by the pipes' velocity,
+ *  the pipes will move one step towards the main player. If
+ *  the pipes have already moved past the player, they will
+ *  wrap around to the other side of the board.
+ */
 void updatePipes(long &pipe_timer) {
   long inverseVelocity = (long)abs(1/pipe1.getVel());
   int interval = 5;
   if (millis() - pipe_timer >= inverseVelocity) {
     if (pipe1.getX() > 0) {
-      pipe1.setX(pipe1.getX() - 1); 
+      pipe1.setX(pipe1.getX() - 1);
     } else {
       pipe1.setX(pipe2.getX() + interval - 1);
-      pipe1.generateRandomBase();
+      pipe1.generateRandomGap();
     }
 
     if (pipe2.getX() > 0) {
       pipe2.setX(pipe2.getX() - 1);
     } else {
       pipe2.setX(pipe1.getX() + interval);
-      pipe2.generateRandomBase();
+      pipe2.generateRandomGap();
     }
     pipe_timer = millis();
+    
   }
 }
 
+/* Updates the velocity and height of the main player */
 void updateKinematics(long &vy_timer, long &grav_timer, Jumper& jumper) {
   updateVelocity(grav_timer, jumper);
   updateHeight(vy_timer, jumper);
 }
 
+/* After a time interval specified by the gravity parameter,
+ *  the main player's y-velocity will decrement by 'gravity'.
+ *  If the main player is on the floor or grazing the ceiling, 
+ *  their velocity will not be affected by gravity (as it is 
+ *  just going to be zero).
+ */
 void updateVelocity(long &grav_timer, Jumper &jumper) {
   long inverseGravity = (long)abs(1/jumper.getGrav());
   if (millis() - grav_timer >= inverseGravity) {
@@ -102,6 +121,10 @@ void updateVelocity(long &grav_timer, Jumper &jumper) {
   }
 }
 
+/* After a time interval specified by the main player's
+ *  velocity, the main players y-position will go up or
+ *  down depending on the sign of their velocity.
+ */
 void updateHeight(long& vy_timer, Jumper& jumper) {
   // if velocity is 0, don't update height
   // if velocity is non-zero, then change height accordingly
@@ -118,8 +141,9 @@ void updateHeight(long& vy_timer, Jumper& jumper) {
   }
 }
 
+/* Detects if the layer has tapped the plate */
 bool playerTapsPlate(int threshold) {
-  long total = sensor.capacitiveSensor(30);
+  long total = sensor.capacitiveSensor(15);
   if (total > threshold) {
       return true;
   }
@@ -127,35 +151,59 @@ bool playerTapsPlate(int threshold) {
 }
 
 void displayJumper(Jumper &jumper) {
-  digitalWrite(CATHODES[1], LOW);
-  int row = 7 - jumper.getHeight();
+  digitalWrite(CATHODES[jumper.getX()], LOW);
+  int row = 7 - jumper.getHeight();         // invert because a height of 0 will correspond 
+                                            // to the top LED
   digitalWrite(ANODES[row], LOW);
 
-  delay(10);
+  delayMicroseconds(500);
 
   digitalWrite(ANODES[row], HIGH);
-  digitalWrite(CATHODES[1], HIGH);
+  digitalWrite(CATHODES[jumper.getX()], HIGH);
 }
 
-void displayPipes(Pipe &pipe1, Pipe &pipe2) {
-  int lowerBound1 = pipe1.getBase();
-  int upperBound1 = pipe1.getBase() + pipe1.getOpening();
-  
-  int lowerBound2 = pipe2.getBase();
-  int upperBound2 = pipe2.getBase() + pipe2.getOpening();
-  
-  for (int row = 0; row <= 7; row++) {
+void displayPipe(Pipe &pipe) {
+  int col = pipe.getX(); 
+  for (int row = 0; row < 8; row++) {
     digitalWrite(ANODES[row], LOW);
-    for (int col = 0; col <= 7; col++) {
-      if (col == pipe1.getX() && (row > lowerBound1 && row <= upperBound1)) {
-        digitalWrite(CATHODES[col], LOW);
-      }
-      if (col == pipe2.getX() && (row > lowerBound2 && row <= upperBound2)) {
-        digitalWrite(CATHODES[col], LOW);
-      }
-      delay(5);
-      digitalWrite(CATHODES[col], HIGH);
+    if (row < pipe.getGapBase() || 
+          row > pipe.getGapBase() + pipe.getGapRange() - 1) {
+      digitalWrite(CATHODES[col], LOW);
     }
+    delayMicroseconds(500);
+    digitalWrite(CATHODES[col], HIGH);
+    digitalWrite(CATHODES[col], HIGH);
     digitalWrite(ANODES[row], HIGH);
+  }
+}
+
+bool collisionDetected() {
+  int height = 7 - jumper.getHeight();
+  if (jumper.getX() == pipe1.getX()) {
+    if (height < pipe1.getGapBase() ||
+          height > pipe1.getGapBase() + pipe1.getGapRange() - 1) {
+            return true;
+    }
+  } else if (jumper.getX() == pipe2.getX()) {
+      if (height < pipe2.getGapBase() ||
+            height > pipe2.getGapBase() + pipe2.getGapRange() - 1) {
+            return true;
+      }
+  }
+  return false;
+}
+
+/* Display will blink 7 times */
+void gameOver() {
+  for (int i = 0; i < 8; i++) {
+    long time = millis();
+    
+    while (millis() - time < 150) {
+      displayJumper(jumper);
+      displayPipe(pipe1);
+      displayPipe(pipe2);
+    }
+
+    delay(250);
   }
 }
