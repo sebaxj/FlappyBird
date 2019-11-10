@@ -7,6 +7,7 @@
 #endif
 
 Jumper::Jumper() {
+  this->x = 1;
   this->height = 7;
   this->vy = 0.0;
   this->gy = 1.0/250; // takes 1/gy seconds for vy to update with regards to gravity
@@ -44,4 +45,8 @@ bool Jumper::validHeight(int check) {
 
 void Jumper::jump(float thrust) {
   this->vy += thrust;
+}
+
+int Jumper::getX() {
+  return this->x;
 }
