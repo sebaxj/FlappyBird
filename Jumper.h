@@ -23,10 +23,13 @@ class Jumper {
 
     void jump(float thrust);
 
+    int getX();
+
   private:
     double vy;
     double gy;
     int height;
+    int x;
 };
 
 #endif
