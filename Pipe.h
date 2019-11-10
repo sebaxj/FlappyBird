@@ -10,27 +10,35 @@
 class Pipe {
   public:
 
+    /* Initializes an obstacle */
     Pipe(int startX);
       
+    /* Sets and retrieves the x velocity of an obstacle */
     void setVel(float newVx);
     float getVel();
 
+    /* Sets and retrieves the x position of an obstacle */
     void setX(int newX);
     int getX();
 
-    void setBase(int y);
-    int getBase();
-    int generateRandomBase();
-
-    void setOpening(int y);
-    int getOpening();
+    /* Creates and retrieves the coordinates of the obstacle's opening */
+    void generateRandomGap();
+    int getGapBase();
+    int getGapRange();
+    void printGap();
 
   private:
+    /* The x velocity of the obstacle */
     float vx;
+    
+    /* The x position of the obstacle */
     int x;
-    int base; // y-location of the base of the opening 
-                // (part of the pipe, not part of the opening)
-    int baseRange;
+    
+    /* The size of the opening in the obstacle */
+    int gapRange;
+    
+    /* The lowest row of the obstacle's opening */
+    int gapBase;
   
 };
 
