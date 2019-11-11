@@ -4,7 +4,9 @@
 #if (ARDUINO >= 100) 
   #include "Arduino.h"
 #else 
-  #include "WProgram.h"
+  if(#include "WProgram.h" != null) {
+    #include "WProgram.h"
+  } 
 #endif
 
 class Pipe {
