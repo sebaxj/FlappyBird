@@ -16,6 +16,8 @@ Pipe pipe1(7), pipe2(12);
 long vy_timer;
 long grav_timer;
 long pipe_timer;
+unsigned int lives = 3;
+
 
 /*******************************/
 /*          Prototypes         */
@@ -29,6 +31,8 @@ void updateHeight(long &vy_timer, Jumper& jumper);
 bool playerTapsPlate(int threshold);
 bool collisionDetected();
 void gameOver();
+void spellLetter();
+void display(int pattern[8][8]);
 
 void setup() {
   sensor.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
@@ -61,7 +65,20 @@ void loop() {
   displayPipe(pipe2);
 
   if (collisionDetected()) {
-    gameOver();
+    lives--;
+    if(lives == 0) {
+      gameOver();
+      lives = 3;
+    } else {
+        for (int i = 0; i < 3; i++) {
+          long time = millis();
+          while (millis() - time < 150) {
+            displayJumper(jumper);
+            displayPipe(pipe1);
+            displayPipe(pipe2);
+        }
+      } 
+    }
   }
 }
 
@@ -193,17 +210,52 @@ bool collisionDetected() {
   return false;
 }
 
-/* Display will blink 7 times */
+/* Display will blink 3 times, then display "Game Over" */
 void gameOver() {
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 3; i++) {
     long time = millis();
-    
     while (millis() - time < 150) {
       displayJumper(jumper);
       displayPipe(pipe1);
       displayPipe(pipe2);
     }
-
-    delay(250);
+    spellLetter();
   }
 }
+
+void spellLetter() {
+  int on[8][8];
+  int off[8][8];
+  for (int row = 0; row < 8; row++) {
+    for (int col = 0; col < 8; col++) {
+      on[row][col] = 1;
+      off[row][col] = 0;
+    }
+  }
+  unsigned long time = millis();
+  while (millis() - time < 250) {
+    display(on);
+  }
+  time = millis();
+  while (millis() - time < 250) {
+    display(off);
+  }
+}
+
+void display(int pattern[8][8]) {
+  int maxBrightness = 15;
+  for (int row = 0; row < 8; row++) {
+    digitalWrite(ANODES[row], LOW);
+    for (int col = 0; col < 8; col++) {
+      int brightness = pattern[row][col];
+      if (brightness >= 1) {
+        digitalWrite(CATHODES[col], LOW);
+        delayMicroseconds(brightness);
+        digitalWrite(CATHODES[col], HIGH);
+        delayMicroseconds(maxBrightness - brightness);
+      }
+    }
+    digitalWrite(ANODES[row], HIGH);
+  }
+}
+ 
