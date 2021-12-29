@@ -1,4 +1,4 @@
 .vscode/arduino.json
 .vscode/c_cpp_properties.json
 arduino-libraries-CapacitiveSensor-a07209f
-
+.DS_Store
